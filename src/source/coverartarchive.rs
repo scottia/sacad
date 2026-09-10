@@ -85,6 +85,14 @@ const THUMBNAIL_SIZES: &[(u32, ThumbnailGetter)] = &[
     (1200, |t| t.large.as_ref()),
 ];
 
+/// Sorting hint for the full-resolution Cover Art Archive image.
+///
+/// The original image has no dimensions in the CAA response, so its real size is
+/// only known after download. Keep its hint just above the largest fixed CAA
+/// thumbnail so targets above 1200 px prefer the original, while targets at or
+/// below 1200 px keep preferring the known-size thumbnail.
+const ORIGINAL_SIZE_HINT: u32 = 1201;
+
 /// Default relevance for Cover Art Archive covers
 const COVERARTARCHIVE_RELEVANCE: source::Relevance = source::Relevance {
     fuzzy: false,
@@ -205,7 +213,7 @@ impl CoverArtArchive {
             covers.push(Cover {
                 url: main_url,
                 thumbnail_url,
-                size_px: Metadata::uncertain((900, 900)),
+                size_px: Metadata::uncertain((ORIGINAL_SIZE_HINT, ORIGINAL_SIZE_HINT)),
                 format: Metadata::uncertain(Format::Png),
                 source_name: SourceName::CoverArtArchive,
                 source_http: Arc::clone(http),
@@ -261,6 +269,16 @@ mod tests {
     use crate::source::tests::{
         source_has_results, source_has_results_compilation, source_no_results,
     };
+
+    #[test]
+    fn original_size_hint_is_above_largest_thumbnail() {
+        let largest_thumbnail = THUMBNAIL_SIZES
+            .iter()
+            .map(|(size, _)| *size)
+            .max()
+            .unwrap_or_default();
+        assert!(ORIGINAL_SIZE_HINT > largest_thumbnail);
+    }
 
     #[tokio::test]
     async fn has_results() {
