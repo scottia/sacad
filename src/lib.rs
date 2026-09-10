@@ -183,10 +183,7 @@ pub async fn search_and_download(
         Metadata::Known((width, height)) => {
             search_opts.matches_min_size(min(*width, *height))
         }
-        Metadata::Uncertain((width, height)) if cover.source_name == SourceName::CoverArtArchive => {
-            let _ = (width, height);
-            true
-        }
+        Metadata::Uncertain(_) if cover.source_name == SourceName::CoverArtArchive => true,
         Metadata::Uncertain((width, height)) => {
             search_opts.matches_min_size(min(*width, *height))
         }
