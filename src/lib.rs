@@ -11,8 +11,8 @@ use std::{
 use itertools::Itertools as _;
 
 use crate::{
-    cl::{ImageProcessingArgs, SearchOptions, SearchQuery},
-    cover::{Cover, CoverKey, SearchReference},
+    cl::{ImageProcessingArgs, SearchOptions, SearchQuery, SourceName},
+    cover::{Cover, CoverKey, Metadata, SearchReference},
     http::SourceHttpClient,
     perceptual_hash::PerceptualHash,
     source::{Source, SourceError},
@@ -176,10 +176,17 @@ pub async fn search_and_download(
     // Find reference
     let reference_hash = find_reference_hash(&results).await;
 
-    // Filter by size constraint
-    results.retain(|cover| {
-        let size = min(cover.size_px.value_hint().0, cover.size_px.value_hint().1);
-        search_opts.matches_min_size(size)
+    // Filter by size constraint. Cover Art Archive originals do not expose their
+    // dimensions in the API response, so keep those uncertain candidates until
+    // download instead of rejecting them based only on their sorting hint.
+    results.retain(|cover| match &cover.size_px {
+        Metadata::Known((width, height)) => {
+            search_opts.matches_min_size(min(*width, *height))
+        }
+        Metadata::Uncertain(_) if cover.source_name == SourceName::CoverArtArchive => true,
+        Metadata::Uncertain((width, height)) => {
+            search_opts.matches_min_size(min(*width, *height))
+        }
     });
 
     // Build search reference with perceptual hashes if applicable
